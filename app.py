@@ -1,13 +1,18 @@
 import os
-import json
-from typing import Dict, Optional
+from typing import Dict
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
 import runpod
+from datetime import datetime
 
-# Initialize models (loaded once on cold start)
-tokenizer = None
-model = None
+# Configuration
+MODEL_NAME = "facebook/nllb-200-distilled-600M"
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+MAX_LENGTH = 512
+
+# Initialize models at global scope
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME).to(DEVICE)
 
 # Language code mapping (ISO 639-1 to NLLB codes)
 LANGUAGE_CODES = {
@@ -245,58 +250,91 @@ LANGUAGE_CODES = {
     "zu": "zul_Latn"   # Zulu
 }
 
+def validate_input(payload: Dict) -> Dict:
+    """Validate input parameters"""
+    if not isinstance(payload, dict):
+        return {"error": "Input must be a JSON object"}
+    
+    text = payload.get("text", "").strip()
+    source_lang = payload.get("source_lang", "").strip()
+    target_lang = payload.get("target_lang", "").strip()
+    
+    if not text:
+        return {"error": "Text cannot be empty"}
+    if not source_lang:
+        return {"error": "source_lang is required"}
+    if not target_lang:
+        return {"error": "target_lang is required"}
+    if source_lang not in LANGUAGE_CODES:
+        return {"error": f"Unsupported source language: {source_lang}"}
+    if target_lang not in LANGUAGE_CODES:
+        return {"error": f"Unsupported target language: {target_lang}"}
+    
+    return {
+        "text": text,
+        "source_lang": source_lang,
+        "target_lang": target_lang
+    }
+
 def translate_text(text: str, source_lang: str, target_lang: str) -> str:
-    """Translate text using Meta's NLLB model."""
-    global tokenizer, model
-
-    # Get NLLB language codes
-    src_code = LANGUAGE_CODES.get(source_lang)
-    tgt_code = LANGUAGE_CODES.get(target_lang)
-
-    if not src_code or not tgt_code:
-        raise ValueError(f"Unsupported language. Available: {list(LANGUAGE_CODES.keys())}")
-
-    # Tokenize and translate
-    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True).to("cuda")
-    translated_tokens = model.generate(
-        **inputs,
-        forced_bos_token_id=tokenizer.lang_code_to_id[tgt_code],
-        max_length=512
-    )
-    return tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)[0]
+    """Perform the translation with error handling"""
+    try:
+        src_code = LANGUAGE_CODES[source_lang]
+        tgt_code = LANGUAGE_CODES[target_lang]
+        
+        inputs = tokenizer(
+            text,
+            return_tensors="pt",
+            truncation=True,
+            padding=True
+        ).to(DEVICE)
+        
+        outputs = model.generate(
+            **inputs,
+            forced_bos_token_id=tokenizer.lang_code_to_id[tgt_code],
+            max_length=MAX_LENGTH
+        )
+        
+        return tokenizer.decode(outputs[0], skip_special_tokens=True)
+    
+    except torch.cuda.OutOfMemoryError:
+        torch.cuda.empty_cache()
+        return {"error": "GPU memory overflow - try shorter text"}
+    except Exception as e:
+        return {"error": f"Translation failed: {str(e)}"}
 
 def handler(job):
-    """RunPod serverless handler."""
-    global tokenizer, model
-
+    """RunPod serverless handler with proper timeout handling"""
+    print(f"Starting job at {datetime.utcnow().isoformat()}")
+    
     try:
-        # Initialize models if not loaded
-        if tokenizer is None or model is None:
-            model_name = "facebook/nllb-200-distilled-600M"
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to("cuda")
-
-        payload = job["input"]
-        text = payload.get("text", "")
-        source_lang = payload.get("source_lang")  # REQUIRED - no auto-detection
-        target_lang = payload.get("target_lang")  # REQUIRED
-
-        if not text:
-            return {"error": "No text provided"}
-        if not source_lang:
-            return {"error": "source_lang is required"}
-        if not target_lang:
-            return {"error": "target_lang is required"}
-
-        translation = translate_text(text, source_lang, target_lang)
+        # Input validation
+        validation = validate_input(job["input"])
+        if "error" in validation:
+            return {"error": validation["error"]}
+        
+        # Perform translation
+        start_time = datetime.utcnow()
+        translation = translate_text(
+            validation["text"],
+            validation["source_lang"],
+            validation["target_lang"]
+        )
+        
+        if isinstance(translation, dict) and "error" in translation:
+            return translation
+            
+        print(f"Completed in {(datetime.utcnow() - start_time).total_seconds()}s")
+        
         return {
             "translation": translation,
-            "source_lang": source_lang,
-            "target_lang": target_lang
+            "source_lang": validation["source_lang"],
+            "target_lang": validation["target_lang"],
+            "processing_time": f"{(datetime.utcnow() - start_time).total_seconds():.2f}s"
         }
-
+        
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": f"Unexpected error: {str(e)}"}
 
 if __name__ == "__main__":
     runpod.serverless.start({"handler": handler})
