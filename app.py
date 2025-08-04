@@ -2,6 +2,7 @@ import os
 import json
 from typing import Dict, Optional
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import runpod  # Added missing import
 
 # Initialize the translator model (loaded once on cold start)
 tokenizer = None
@@ -47,7 +48,7 @@ def translate_text(text: str, source_lang: str, target_lang: str) -> str:
     )
     return tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)[0]
 
-def handler(event: Dict) -> Dict:
+def handler(job):
     """RunPod serverless handler."""
     global tokenizer, model
 
@@ -58,7 +59,7 @@ def handler(event: Dict) -> Dict:
         model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to("cuda")
 
     try:
-        payload = json.loads(event["input"])
+        payload = job["input"]
         text = payload.get("text", "")
         source_lang = payload.get("source_lang", "en")
         target_lang = payload.get("target_lang", "hi")
@@ -76,13 +77,5 @@ def handler(event: Dict) -> Dict:
     except Exception as e:
         return {"error": str(e)}
 
-# For local testing (not used in RunPod)
 if __name__ == "__main__":
-    test_input = {
-        "input": json.dumps({
-            "text": "Hello world",
-            "source_lang": "en",
-            "target_lang": "hi"
-        })
-    }
-    print(handler(test_input))
+    runpod.serverless.start({"handler": handler})
