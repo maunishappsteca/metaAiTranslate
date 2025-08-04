@@ -3,4 +3,3 @@ torch==2.2.1
 accelerate==0.29.2
 runpod==0.10.0
 sentencepiece==0.2.0
-pycld2==0.41  # New dependency

@@ -4,7 +4,6 @@ from typing import Dict, Optional
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
 import runpod
-import pycld2 as cld2  # New import for language detection
 
 # Initialize models (loaded once on cold start)
 tokenizer = None
@@ -246,32 +245,9 @@ LANGUAGE_CODES = {
     "zu": "zul_Latn"   # Zulu
 }
 
-def detect_language(text: str) -> str:
-    """Auto-detect language using Compact Language Detector 2."""
-    try:
-        _, _, _, detected_lang = cld2.detect(text, bestEffort=True)
-        lang_code = detected_lang[0].lower()  # Convert to lowercase ISO 639-1
-        
-        # Validate detected language is supported
-        if lang_code not in LANGUAGE_CODES:
-            print(f"Detected unsupported language: {lang_code}, defaulting to 'en'")
-            return "en"
-            
-        return lang_code
-    except Exception as e:
-        print(f"Language detection failed: {str(e)}")
-        return "en"  # Fallback to English
-
 def translate_text(text: str, source_lang: str, target_lang: str) -> str:
     """Translate text using Meta's NLLB model."""
     global tokenizer, model
-
-    if source_lang == "-":
-        source_lang = detect_language(text)
-        print(f"Auto-detected language: {source_lang}")
-
-    if source_lang == target_lang:
-        return text
 
     # Get NLLB language codes
     src_code = LANGUAGE_CODES.get(source_lang)
@@ -302,16 +278,15 @@ def handler(job):
 
         payload = job["input"]
         text = payload.get("text", "")
-        source_lang = payload.get("source_lang", "en")
-        target_lang = payload.get("target_lang", "hi")
+        source_lang = payload.get("source_lang")  # REQUIRED - no auto-detection
+        target_lang = payload.get("target_lang")  # REQUIRED
 
         if not text:
             return {"error": "No text provided"}
-
-        # Auto-detect if source_lang is "-"
-        if source_lang == "-":
-            source_lang = detect_language(text)
-            print(f"Auto-detected source language: {source_lang}")
+        if not source_lang:
+            return {"error": "source_lang is required"}
+        if not target_lang:
+            return {"error": "target_lang is required"}
 
         translation = translate_text(text, source_lang, target_lang)
         return {
