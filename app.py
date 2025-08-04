@@ -1,15 +1,14 @@
 import os
 import json
 from typing import Dict, Optional
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline  # Added pipeline import
-import torch  # Added torch import
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import torch
 import runpod
+import pycld2 as cld2  # New import for language detection
 
 # Initialize models (loaded once on cold start)
 tokenizer = None
 model = None
-language_detector = None
-
 
 # Language code mapping (ISO 639-1 to NLLB codes)
 LANGUAGE_CODES = {
@@ -248,24 +247,15 @@ LANGUAGE_CODES = {
 }
 
 def detect_language(text: str) -> str:
-    """Auto-detect language using Facebook's FastText."""
-    global language_detector
-    
-    if language_detector is None:
-        # Initialize detector if not already loaded
-        language_detector = pipeline(
-            "text-classification",
-            model="facebook/fasttext-language-identification",
-            device=0 if torch.cuda.is_available() else -1
-        )
-    
+    """Auto-detect language using Compact Language Detector 2."""
     try:
-        result = language_detector(text[:100])[0]  # Only use first 100 chars for efficiency
-        lang_code = result['label'].split('__')[-1]
+        _, _, _, detected_lang = cld2.detect(text, bestEffort=True)
+        lang_code = detected_lang[0].lower()  # Convert to lowercase ISO 639-1
         
         # Validate detected language is supported
         if lang_code not in LANGUAGE_CODES:
-            raise ValueError(f"Detected language {lang_code} not supported")
+            print(f"Detected unsupported language: {lang_code}, defaulting to 'en'")
+            return "en"
             
         return lang_code
     except Exception as e:
@@ -276,16 +266,32 @@ def translate_text(text: str, source_lang: str, target_lang: str) -> str:
     """Translate text using Meta's NLLB model."""
     global tokenizer, model
 
-    # Auto-detect if source language not specified
     if source_lang == "-":
         source_lang = detect_language(text)
         print(f"Auto-detected language: {source_lang}")
 
-    # [Rest of your existing translate_text function...]
+    if source_lang == target_lang:
+        return text
+
+    # Get NLLB language codes
+    src_code = LANGUAGE_CODES.get(source_lang)
+    tgt_code = LANGUAGE_CODES.get(target_lang)
+
+    if not src_code or not tgt_code:
+        raise ValueError(f"Unsupported language. Available: {list(LANGUAGE_CODES.keys())}")
+
+    # Tokenize and translate
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True).to("cuda")
+    translated_tokens = model.generate(
+        **inputs,
+        forced_bos_token_id=tokenizer.lang_code_to_id[tgt_code],
+        max_length=512
+    )
+    return tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)[0]
 
 def handler(job):
     """RunPod serverless handler."""
-    global tokenizer, model, language_detector
+    global tokenizer, model
 
     try:
         # Initialize models if not loaded
@@ -293,12 +299,6 @@ def handler(job):
             model_name = "facebook/nllb-200-distilled-600M"
             tokenizer = AutoTokenizer.from_pretrained(model_name)
             model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to("cuda")
-            # Pre-load language detector
-            language_detector = pipeline(
-                "text-classification",
-                model="facebook/fasttext-language-identification",
-                device=0 if torch.cuda.is_available() else -1
-            )
 
         payload = job["input"]
         text = payload.get("text", "")
@@ -308,7 +308,17 @@ def handler(job):
         if not text:
             return {"error": "No text provided"}
 
-        # [Rest of your handler logic...]
+        # Auto-detect if source_lang is "-"
+        if source_lang == "-":
+            source_lang = detect_language(text)
+            print(f"Auto-detected source language: {source_lang}")
+
+        translation = translate_text(text, source_lang, target_lang)
+        return {
+            "translation": translation,
+            "source_lang": source_lang,
+            "target_lang": target_lang
+        }
 
     except Exception as e:
         return {"error": str(e)}
