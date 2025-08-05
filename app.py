@@ -2,38 +2,42 @@ import torch
 from fairseq.models.transformer import TransformerModel
 import runpod
 
-# GPU Configuration
-torch.backends.cuda.matmul.allow_tf32 = True  # Enable TF32 for Ampere
-torch.backends.cudnn.allow_tf32 = True
-
-# Load model with AMP (Automatic Mixed Precision)
+# ---------------------
+# Load Model Once
+# ---------------------
 model = TransformerModel.from_pretrained(
-    model_name_or_path='/app/models',
-    checkpoint_file='nllb-200-distilled-600M.pt',
-    data_name_or_path='/app/models',
-    bpe='sentencepiece',
-    fp16=True  # Enable mixed precision
-).cuda()
+    model_name_or_path='models/en-ru',
+    checkpoint_file='model1.pt:model2.pt:model3.pt:model4.pt',
+    data_name_or_path='models/en-ru',
+    bpe='fastbpe',
+    bpe_codes='models/en-ru/bpecodes'
+).eval()
 
-def handler(job):
+if torch.cuda.is_available():
+    model = model.cuda()
+
+
+# ---------------------
+# RunPod Serverless Handler
+# ---------------------
+def handler(event):
+    body = event.get("input", {}).get("body", {})
+    text = body.get("text", "").strip()
+
+    if not model:
+        return {"error": "Model not loaded"}
+
+    if not text:
+        return {"error": "No input text provided"}
+
     try:
-        input = job["input"]
-        with torch.inference_mode():
-            translation = model.translate(
-                input["text"],
-                src_lang=input["source_lang"],
-                tgt_lang=input["target_lang"]
-            )
-        return {
-            "translation": translation,
-            "source_lang": input["source_lang"],
-            "target_lang": input["target_lang"],
-            "device": str(model.device)
-        }
+        translation = model.translate(text)
+        return {"translation": translation}
     except Exception as e:
         return {"error": str(e)}
 
-if __name__ == "__main__":
-    print(f"Model loaded on {model.device}")
-    runpod.serverless.start({"handler": handler})
-    
+
+# ---------------------
+# Start RunPod Handler
+# ---------------------
+runpod.serverless.start({"handler": handler})
