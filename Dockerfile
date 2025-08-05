@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     python3.10 python3.10-dev python3.10-distutils \
     python3-pip build-essential git curl wget \
     libsndfile1 libffi-dev libprotobuf-dev protobuf-compiler \
-    cmake ninja-build gcc g++ && rm -rf /var/lib/apt/lists/*
+    cmake ninja-build gcc g++ libjpeg-dev zlib1g-dev && rm -rf /var/lib/apt/lists/*
 
 # ---------------------
 # Step 2: Python alias
@@ -19,19 +19,19 @@ RUN ln -sf /usr/bin/python3.10 /usr/bin/python && \
     python -m pip install --upgrade pip
 
 # ---------------------
-# Step 3: Install Python packages (fixed)
+# Step 3: Install Python packages
 # ---------------------
 # Install compatible PyTorch version
 RUN pip install --no-cache-dir torch==1.13.1+cu116 -f https://download.pytorch.org/whl/torch_stable.html
+
+# Install additional dependencies
+RUN apt-get install -y libjpeg-dev zlib1g-dev
 
 # Install remaining packages
 RUN pip install --no-cache-dir flask runpod
 
 # Install compatible fairseq version
 RUN pip install --no-cache-dir fairseq==0.12.2
-
-# Install remaining packages
-RUN pip install --no-cache-dir flask runpod
 
 # ---------------------
 # Step 4: Download Fairseq EN→RU model
