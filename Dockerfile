@@ -26,7 +26,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Upgrade pip to ensure we have the latest version for installing packages.
 RUN ln -sf /usr/bin/python3.10 /usr/bin/python && \
     ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
-    python -m pip install --upgrade pip
+    python -m pip install --upgrade pip && \
+    pip install pip==24.0
 
 # ---------------------
 # Step 3: Install Python packages
@@ -34,7 +35,6 @@ RUN ln -sf /usr/bin/python3.10 /usr/bin/python && \
 # Install PyTorch first, as fairseq depends on it.
 # We use the specific version 1.13.1+cu116 as in your original Dockerfile,
 # which is compatible with fairseq's requirement of >= 1.10.0.
-# Install compatible PyTorch version
 RUN pip install --no-cache-dir torch==1.13.1+cu116 -f https://download.pytorch.org/whl/torch_stable.html
 
 # Clone the fairseq repository and install it in editable mode.
@@ -42,7 +42,7 @@ RUN pip install --no-cache-dir torch==1.13.1+cu116 -f https://download.pytorch.o
 # for local development, which is more robust for building complex libraries
 # from source and ensures all necessary C/C++ components are compiled correctly.
 # We checkout the specific v0.12.2 tag to match your desired version.
-RUN git clone [https://github.com/pytorch/fairseq.git](https://github.com/pytorch/fairseq.git) /usr/local/src/fairseq_repo && \
+RUN git clone https://github.com/pytorch/fairseq.git /usr/local/src/fairseq_repo && \
     cd /usr/local/src/fairseq_repo && \
     git checkout v0.12.2 && \
     pip install --no-cache-dir --editable .
@@ -58,7 +58,7 @@ RUN pip install --no-cache-dir flask runpod
 # Create directory for models and download the pre-trained WMT19 EN->RU ensemble model.
 # Extract the model files and then remove the tar.gz archive to save space.
 RUN mkdir -p /app/models/en-ru && \
-    wget [https://dl.fbaipublicfiles.com/fairseq/models/wmt19.en-ru.ensemble.tar.gz](https://dl.fbaipublicfiles.com/fairseq/models/wmt19.en-ru.ensemble.tar.gz) -P /app/models/en-ru && \
+    wget https://dl.fbaipublicfiles.com/fairseq/models/wmt19.en-ru.ensemble.tar.gz -P /app/models/en-ru && \
     tar -xvf /app/models/en-ru/wmt19.en-ru.ensemble.tar.gz -C /app/models/en-ru && \
     rm /app/models/en-ru/wmt19.en-ru.ensemble.tar.gz
 
