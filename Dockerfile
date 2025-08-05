@@ -1,6 +1,9 @@
 # Start from the CUDA base image
 FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
+# Set the default shell to bash for all RUN commands
+SHELL ["/bin/bash", "-c"]
+
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -53,7 +56,6 @@ RUN pip install --no-cache-dir fairseq==0.12.2
 # ---------------------
 
 # Create the models directory
-RUN #!/bin/bash
 RUN set -euxo pipefail; \
     mkdir -p /app/models
 
@@ -61,7 +63,6 @@ RUN set -euxo pipefail; \
 WORKDIR /app/models
 
 # Download the model archive
-RUN #!/bin/bash
 RUN set -euxo pipefail; \
     echo "Downloading model..." && \
     curl -L -f -o wmt19.en-ru.tar.gz https://dl.fbaipublicfiles.com/fairseq/models/wmt19.en-ru.joined-dict.ensemble.tar.gz && \
@@ -69,7 +70,6 @@ RUN set -euxo pipefail; \
     ls -l
 
 # Extract the model archive
-RUN #!/bin/bash
 RUN set -euxo pipefail; \
     echo "Extracting model..." && \
     tar -xzvf wmt19.en-ru.tar.gz && \
@@ -77,7 +77,6 @@ RUN set -euxo pipefail; \
     ls -l
 
 # Rename the extracted directory
-RUN #!/bin/bash
 RUN set -euxo pipefail; \
     echo "Renaming extracted directory..." && \
     mv wmt19.en-ru.joined-dict.ensemble en-ru && \
@@ -85,7 +84,6 @@ RUN set -euxo pipefail; \
     ls -l
 
 # Remove the downloaded archive to save space
-RUN #!/bin/bash
 RUN set -euxo pipefail; \
     echo "Removing temporary archive..." && \
     rm wmt19.en-ru.tar.gz && \
