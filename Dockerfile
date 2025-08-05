@@ -57,13 +57,10 @@ RUN pip install --no-cache-dir flask runpod
 # ---------------------
 # Create directory for models and download the pre-trained WMT19 EN->RU ensemble model.
 # Extract the model files and then remove the tar.gz archive to save space.
-RUN mkdir -p /app/models/en-ru && \
-    echo "Downloading model..." && \
-    curl -L https://dl.fbaipublicfiles.com/fairseq/models/wmt19.en-ru.ensemble.tar.gz -o /app/models/en-ru/wmt19.en-ru.ensemble.tar.gz && \
-    echo "Download complete. Extracting..." && \
-    tar -xzvf /app/models/en-ru/wmt19.en-ru.ensemble.tar.gz -C /app/models/en-ru && \
-    echo "Extraction complete." && \
-    rm /app/models/en-ru/wmt19.en-ru.ensemble.tar.gz
+RUN python -c "\
+from fairseq import checkpoint_utils;\
+checkpoint_utils.download_ensemble_and_task('wmt19.en-ru', save_dir='/app/models/en-ru')\
+"
 
 
 # ---------------------
