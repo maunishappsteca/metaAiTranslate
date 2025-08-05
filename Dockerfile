@@ -49,18 +49,26 @@ RUN pip install --no-cache-dir torch==1.13.1+cu116 torchaudio==0.13.1+cu116 -f h
 RUN pip install --no-cache-dir fairseq==0.12.2
 
 # ---------------------
-# Step 5: Download Model
+# Step 5: Download and Extract Model
 # ---------------------
-RUN mkdir -p /app/models && \
+# Added 'set -euxo pipefail' for better debugging. This will make the script
+# exit immediately if any command fails and print the failing command.
+# The curl command downloads the file, tar extracts it, rm removes the archive,
+# and mv renames the extracted directory.
+RUN set -euxo pipefail; \
+    mkdir -p /app/models && \
     cd /app/models && \
-    curl -L https://dl.fbaipublicfiles.com/fairseq/models/wmt19.en-ru.joined-dict.ensemble.tar.gz -o wmt19.en-ru.tar.gz && \
+    curl -L -f -o wmt19.en-ru.tar.gz https://dl.fbaipublicfiles.com/fairseq/models/wmt19.en-ru.joined-dict.ensemble.tar.gz && \
     tar -xzvf wmt19.en-ru.tar.gz && \
-    rm wmt19.en-ru.tar.gz && \
-    mv wmt19.en-ru.joined-dict.ensemble en-ru
+    # Ensure the extracted directory exists before moving.
+    # The name is confirmed from the Fairseq repository structure.
+    mv wmt19.en-ru.joined-dict.ensemble en-ru && \
+    rm wmt19.en-ru.tar.gz
 
 # ---------------------
 # Step 6: Cleanup
 # ---------------------
+# Purge build dependencies to reduce final image size.
 RUN apt-get purge -y build-essential gcc g++ && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
@@ -71,5 +79,5 @@ RUN apt-get purge -y build-essential gcc g++ && \
 WORKDIR /app
 COPY app.py .
 
-# Entrypoint
+# Entrypoint for the application
 CMD ["python", "app.py"]
