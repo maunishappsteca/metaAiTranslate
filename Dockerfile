@@ -58,7 +58,7 @@ RUN pip install --no-cache-dir flask runpod
 # Create directory for models and download the pre-trained WMT19 EN->RU ensemble model.
 # Extract the model files and then remove the tar.gz archive to save space.
 RUN mkdir -p /app/models/en-ru && \
-    wget https://dl.fbaipublicfiles.com/fairseq/models/wmt19.en-ru.ensemble.tar.gz -P /app/models/en-ru && \
+    curl -L -f -o /app/models/en-ru/wmt19.en-ru.ensemble.tar.gz https://dl.fbaipublicfiles.com/fairseq/models/wmt19.en-ru.ensemble.tar.gz && \
     tar -xvf /app/models/en-ru/wmt19.en-ru.ensemble.tar.gz -C /app/models/en-ru && \
     rm /app/models/en-ru/wmt19.en-ru.ensemble.tar.gz
 
