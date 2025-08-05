@@ -1,4 +1,3 @@
-# Base image with CUDA (adjust if using CPU-only)
 FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -8,9 +7,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 # ---------------------
 RUN apt-get update && apt-get install -y \
     python3.10 python3.10-dev python3.10-distutils \
-    python3-pip build-essential curl wget \
+    python3-pip build-essential git curl wget \
     libsndfile1 libffi-dev libprotobuf-dev protobuf-compiler \
-    cmake git && rm -rf /var/lib/apt/lists/*
+    cmake ninja-build gcc g++ && rm -rf /var/lib/apt/lists/*
 
 # ---------------------
 # Step 2: Python alias
@@ -22,8 +21,9 @@ RUN ln -sf /usr/bin/python3.10 /usr/bin/python && \
 # ---------------------
 # Step 3: Install Python packages
 # ---------------------
-RUN pip install --no-cache-dir torch==1.13.1+cu116 -f https://download.pytorch.org/whl/torch_stable.html && \
-    pip install --no-cache-dir fairseq flask runpod
+RUN pip install --no-cache-dir torch==1.13.1+cu116 -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install --no-cache-dir flask runpod
+RUN pip install --no-cache-dir fairseq
 
 # ---------------------
 # Step 4: Download Fairseq EN→RU model
@@ -39,5 +39,4 @@ COPY app.py /app/app.py
 
 WORKDIR /app
 
-# RunPod Serverless starts from this
 CMD ["python", "app.py"]
