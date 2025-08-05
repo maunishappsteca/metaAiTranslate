@@ -69,8 +69,9 @@ RUN echo "Downloading model..." && \
     ls -l
 
 # Extract the model archive
+# Added --no-same-owner to prevent ownership change errors.
 RUN echo "Extracting model..." && \
-    tar -xzvf wmt19.en-ru.tar.gz && \
+    tar -xzvf wmt19.en-ru.tar.gz --no-same-owner && \
     echo "Extraction complete. Listing contents of /app/models:" && \
     ls -l
 
