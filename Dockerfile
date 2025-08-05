@@ -1,42 +1,36 @@
-FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+# Use official Python image with necessary system packages
+FROM python:3.10-slim
 
-ENV DEBIAN_FRONTEND=noninteractive
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-# ---------------------
-# Step 1: System packages
-# ---------------------
-RUN apt-get update && apt-get install -y \
-    python3.10 python3.10-dev python3.10-distutils \
-    python3-pip build-essential git curl wget \
-    libsndfile1 libffi-dev libprotobuf-dev protobuf-compiler \
-    cmake ninja-build gcc g++ && rm -rf /var/lib/apt/lists/*
-
-# ---------------------
-# Step 2: Python alias
-# ---------------------
-RUN ln -sf /usr/bin/python3.10 /usr/bin/python && \
-    ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
-    python -m pip install --upgrade pip
-
-# ---------------------
-# Step 3: Install Python packages
-# ---------------------
-RUN pip install --no-cache-dir torch==1.13.1+cu116 -f https://download.pytorch.org/whl/torch_stable.html
-RUN pip install --no-cache-dir flask runpod
-RUN pip install --no-cache-dir fairseq
-
-# ---------------------
-# Step 4: Download Fairseq EN→RU model
-# ---------------------
-RUN mkdir -p /app/models/en-ru && \
-    wget https://dl.fbaipublicfiles.com/fairseq/models/wmt19.en-ru.ensemble.tar.gz -P /app/models/en-ru && \
-    tar -xvf /app/models/en-ru/wmt19.en-ru.ensemble.tar.gz -C /app/models/en-ru
-
-# ---------------------
-# Step 5: App Setup
-# ---------------------
-COPY app.py /app/app.py
-
+# Set working directory
 WORKDIR /app
 
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    cmake \
+    libsndfile1 \
+    libffi-dev \
+    libprotobuf-dev \
+    protobuf-compiler \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies (torch first, then others)
+RUN pip install --upgrade pip
+
+# Install torch first (with CUDA 11.6 support) - adjust if CPU only
+RUN pip install torch==1.13.1+cu116 -f https://download.pytorch.org/whl/torch_stable.html
+
+# Install fairseq, flask, runpod
+RUN pip install fairseq flask runpod
+
+# Copy app files
+COPY app.py .
+
+# Default command
 CMD ["python", "app.py"]
