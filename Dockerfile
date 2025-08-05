@@ -34,7 +34,8 @@ RUN ln -sf /usr/bin/python3.10 /usr/bin/python && \
 # Install PyTorch first, as fairseq depends on it.
 # We use the specific version 1.13.1+cu116 as in your original Dockerfile,
 # which is compatible with fairseq's requirement of >= 1.10.0.
-RUN pip install --no-cache-dir torch==1.13.1+cu116 -f [https://download.pytorch.org/whl/torch_stable.html](https://download.pytorch.org/whl/torch_stable.html)
+# Install compatible PyTorch version
+RUN pip install --no-cache-dir torch==1.13.1+cu116 -f https://download.pytorch.org/whl/torch_stable.html
 
 # Clone the fairseq repository and install it in editable mode.
 # This approach directly follows the fairseq documentation's recommendation
