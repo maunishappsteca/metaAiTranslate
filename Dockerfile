@@ -49,15 +49,11 @@ RUN pip install --no-cache-dir torch==1.13.1+cu116 torchaudio==0.13.1+cu116 -f h
 RUN pip install --no-cache-dir fairseq==0.12.2
 
 # ---------------------
-# Step 5: Download and Extract Model
+# Step 5: Download and Extract Model (Divided for Debugging)
 # ---------------------
-# Added 'set -euxo pipefail' for better debugging. This will make the script
-# exit immediately if any command fails and print the failing command.
-# The curl command downloads the file, tar extracts it, rm removes the archive,
-# and mv renames the extracted directory.
-
 
 # Create the models directory
+RUN #!/bin/bash
 RUN set -euxo pipefail; \
     mkdir -p /app/models
 
@@ -65,6 +61,7 @@ RUN set -euxo pipefail; \
 WORKDIR /app/models
 
 # Download the model archive
+RUN #!/bin/bash
 RUN set -euxo pipefail; \
     echo "Downloading model..." && \
     curl -L -f -o wmt19.en-ru.tar.gz https://dl.fbaipublicfiles.com/fairseq/models/wmt19.en-ru.joined-dict.ensemble.tar.gz && \
@@ -72,6 +69,7 @@ RUN set -euxo pipefail; \
     ls -l
 
 # Extract the model archive
+RUN #!/bin/bash
 RUN set -euxo pipefail; \
     echo "Extracting model..." && \
     tar -xzvf wmt19.en-ru.tar.gz && \
@@ -79,6 +77,7 @@ RUN set -euxo pipefail; \
     ls -l
 
 # Rename the extracted directory
+RUN #!/bin/bash
 RUN set -euxo pipefail; \
     echo "Renaming extracted directory..." && \
     mv wmt19.en-ru.joined-dict.ensemble en-ru && \
@@ -86,17 +85,18 @@ RUN set -euxo pipefail; \
     ls -l
 
 # Remove the downloaded archive to save space
+RUN #!/bin/bash
 RUN set -euxo pipefail; \
     echo "Removing temporary archive..." && \
     rm wmt19.en-ru.tar.gz && \
     echo "Cleanup complete. Final contents of /app/models:" && \
     ls -l
-    
 
 # ---------------------
 # Step 6: Cleanup
 # ---------------------
-# Purge build dependencies to reduce final image size.
+# Change back to /app before cleanup to ensure paths are correct
+WORKDIR /app
 RUN apt-get purge -y build-essential gcc g++ && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
@@ -104,6 +104,7 @@ RUN apt-get purge -y build-essential gcc g++ && \
 # ---------------------
 # Step 7: App Setup
 # ---------------------
+# Ensure we are in the correct working directory for app.py
 WORKDIR /app
 COPY app.py .
 
