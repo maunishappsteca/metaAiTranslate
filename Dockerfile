@@ -62,10 +62,9 @@ RUN mkdir -p /app/models
 WORKDIR /app/models
 
 # Download the model archive
-# NOTE: The previous URL returned a 403 Forbidden error.
-# You need to find an updated or alternative URL for this model.
+# Using the URL provided in your latest query.
 RUN echo "Downloading model..." && \
-    curl -L -f -o wmt19.en-ru.tar.gz YOUR_NEW_MODEL_URL_HERE && \
+    curl -L -f -o wmt19.en-ru.tar.gz https://dl.fbaipublicfiles.com/fairseq/models/wmt19.en-ru.ensemble.tar.gz && \
     echo "Download complete. Listing contents of /app/models:" && \
     ls -l
 
