@@ -56,36 +56,33 @@ RUN pip install --no-cache-dir fairseq==0.12.2
 # ---------------------
 
 # Create the models directory
-RUN set -euxo pipefail; \
-    mkdir -p /app/models
+RUN mkdir -p /app/models
 
 # Change to the models directory for easier path handling
 WORKDIR /app/models
 
 # Download the model archive
-RUN set -euxo pipefail; \
-    echo "Downloading model..." && \
-    curl -L -f -o wmt19.en-ru.tar.gz https://dl.fbaipublicfiles.com/fairseq/models/wmt19.en-ru.joined-dict.ensemble.tar.gz && \
+# NOTE: The previous URL returned a 403 Forbidden error.
+# You need to find an updated or alternative URL for this model.
+RUN echo "Downloading model..." && \
+    curl -L -f -o wmt19.en-ru.tar.gz YOUR_NEW_MODEL_URL_HERE && \
     echo "Download complete. Listing contents of /app/models:" && \
     ls -l
 
 # Extract the model archive
-RUN set -euxo pipefail; \
-    echo "Extracting model..." && \
+RUN echo "Extracting model..." && \
     tar -xzvf wmt19.en-ru.tar.gz && \
     echo "Extraction complete. Listing contents of /app/models:" && \
     ls -l
 
 # Rename the extracted directory
-RUN set -euxo pipefail; \
-    echo "Renaming extracted directory..." && \
+RUN echo "Renaming extracted directory..." && \
     mv wmt19.en-ru.joined-dict.ensemble en-ru && \
     echo "Renaming complete. Listing contents of /app/models:" && \
     ls -l
 
 # Remove the downloaded archive to save space
-RUN set -euxo pipefail; \
-    echo "Removing temporary archive..." && \
+RUN echo "Removing temporary archive..." && \
     rm wmt19.en-ru.tar.gz && \
     echo "Cleanup complete. Final contents of /app/models:" && \
     ls -l
