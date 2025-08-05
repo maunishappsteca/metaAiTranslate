@@ -24,11 +24,11 @@ RUN ln -sf /usr/bin/python3.10 /usr/bin/python && \
 # Install compatible PyTorch version
 RUN pip install --no-cache-dir torch==1.13.1+cu116 -f https://download.pytorch.org/whl/torch_stable.html
 
-# Install fairseq first with compatible dependencies
-RUN pip install --no-cache-dir \
-    hydra-core==1.3.2 \
-    omegaconf==2.3.0 \
-    fairseq@git+https://github.com/facebookresearch/fairseq.git@main
+# Install remaining packages
+RUN pip install --no-cache-dir flask runpod
+
+# Install compatible fairseq version
+RUN pip install --no-cache-dir fairseq==0.12.2
 
 # Install remaining packages
 RUN pip install --no-cache-dir flask runpod
