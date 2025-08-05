@@ -55,15 +55,43 @@ RUN pip install --no-cache-dir fairseq==0.12.2
 # exit immediately if any command fails and print the failing command.
 # The curl command downloads the file, tar extracts it, rm removes the archive,
 # and mv renames the extracted directory.
+
+
+# Create the models directory
 RUN set -euxo pipefail; \
-    mkdir -p /app/models && \
-    cd /app/models && \
+    mkdir -p /app/models
+
+# Change to the models directory for easier path handling
+WORKDIR /app/models
+
+# Download the model archive
+RUN set -euxo pipefail; \
+    echo "Downloading model..." && \
     curl -L -f -o wmt19.en-ru.tar.gz https://dl.fbaipublicfiles.com/fairseq/models/wmt19.en-ru.joined-dict.ensemble.tar.gz && \
+    echo "Download complete. Listing contents of /app/models:" && \
+    ls -l
+
+# Extract the model archive
+RUN set -euxo pipefail; \
+    echo "Extracting model..." && \
     tar -xzvf wmt19.en-ru.tar.gz && \
-    # Ensure the extracted directory exists before moving.
-    # The name is confirmed from the Fairseq repository structure.
+    echo "Extraction complete. Listing contents of /app/models:" && \
+    ls -l
+
+# Rename the extracted directory
+RUN set -euxo pipefail; \
+    echo "Renaming extracted directory..." && \
     mv wmt19.en-ru.joined-dict.ensemble en-ru && \
-    rm wmt19.en-ru.tar.gz
+    echo "Renaming complete. Listing contents of /app/models:" && \
+    ls -l
+
+# Remove the downloaded archive to save space
+RUN set -euxo pipefail; \
+    echo "Removing temporary archive..." && \
+    rm wmt19.en-ru.tar.gz && \
+    echo "Cleanup complete. Final contents of /app/models:" && \
+    ls -l
+    
 
 # ---------------------
 # Step 6: Cleanup
